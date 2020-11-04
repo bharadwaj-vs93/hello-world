@@ -1,0 +1,69 @@
+pipeline
+{
+    tools
+    {
+        jdk 'java'
+        maven 'maven'
+    }
+    agent any
+    stages
+    {
+        stage('git-checkout')
+        {
+            steps
+            {
+            git 'https://github.com/Vsb19/hello-world.git'
+            }
+        }
+        stage('mvn-package')
+        {
+            steps
+            {
+                sh 'mvn package'
+            }
+        }
+        stage('docker build')
+        {
+            steps
+            {
+                
+                sh '''rm -rf dockerimage
+mkdir dockerimage
+cd dockerimage
+cp /var/lib/jenkins/workspace/gol/webapp/target/webapp.war .
+touch dockerfile
+cat<<EOT>>dockerfile
+FROM tomcat
+ADD webapp.war /usr/local/tomcat/webapps/
+CMD ["catalina.sh","run"]
+EXPOSE 8080
+EOT
+sudo docker build -t bharadwajavs/hw:$BUILD_NUMBER .
+
+
+'''
+                
+            }
+        }
+        stage('docker login')
+        {
+            steps
+            {
+            withCredentials([string(credentialsId: 'docker', variable: 'docker')])  
+            {
+    
+          
+          sh'docker login -u bharadwajavs -p ${docker}'
+            }
+            }
+            
+        }
+        stage('Docker push')
+        {
+            steps
+            {
+                sh 'docker push bharadwajavs/hw:$BUILD_NUMBER'
+            }
+        }
+    }
+}
